@@ -1,0 +1,32 @@
+modLoader = "javafml"
+loaderVersion = "[1,)"
+license = "MIT"
+issueTrackerURL = "https://example.invalid/issues"
+
+[[mods]]
+modId = "${mod_id}"
+version = "${version}"
+displayName = "Puppet Controller"
+authors = "DSH"
+description = '''
+直接操控你自己的玩家实体：不生成假人、不模拟键鼠。
+Python / LLM 可通过本地 TCP 下自然语言指令，游戏内按 K 打开控制台。
+'''
+
+# mixin 配置
+[[mixins]]
+config = "puppet.mixins.json"
+
+[[dependencies.${mod_id}]]
+    modId = "neoforge"
+    type = "required"
+    versionRange = "[${neoforge_version},)"
+    ordering = "NONE"
+    side = "BOTH"
+
+[[dependencies.${mod_id}]]
+    modId = "minecraft"
+    type = "required"
+    versionRange = "[${minecraft_version},)"
+    ordering = "NONE"
+    side = "BOTH"

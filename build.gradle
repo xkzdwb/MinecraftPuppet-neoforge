@@ -1,0 +1,126 @@
+plugins {
+    id 'java'
+    id 'net.neoforged.moddev' version "${moddevgradle_version}"
+}
+
+version = "${mod_version}+mc${minecraft_version}"
+group = project.maven_group
+
+base {
+    archivesName = project.archives_base_name
+}
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(project.java_version as int)
+    }
+    withSourcesJar()
+}
+
+neoForge {
+    version = project.neoforge_version
+
+    // 用 Mojang 官方映射（NeoForge 默认），便于和社区教程对照
+    // 需要反编译看源码时跑：gradle createMinecraftArtifacts
+    parchment {
+        // 26.2 暂未发布 parchment 数据，留空即可
+    }
+
+    runs {
+        client {
+            client()
+            systemProperty 'neoforge.enabledGameTestNamespaces', project.mod_id
+        }
+        server {
+            server()
+            programArgument '--nogui'
+            systemProperty 'neoforge.enabledGameTestNamespaces', project.mod_id
+        }
+    }
+
+    mods {
+        "${project.mod_id}" {
+            sourceSet sourceSets.main
+        }
+    }
+}
+
+repositories {
+    /*
+     * 本机修补仓库（可选）。
+     * 只有 .build-mcdeps 存在时才启用 —— 那是 tools/gen-mc-deps.mjs 生成的
+     * net.neoforged:minecraft-dependencies 本地副本，用于 maven.neoforged.net 不可达的机器。
+     * 普通环境不会走到这里，NeoForge 官方仓库能直接提供该构件。
+     */
+    def localMcDeps = file("${rootDir}/.build-mcdeps")
+    if (localMcDeps.isDirectory()) {
+        maven {
+            name = 'LocalMcDeps'
+            url = localMcDeps
+            content {
+                includeGroup 'net.neoforged'
+                includeModule 'net.neoforged', 'minecraft-dependencies'
+            }
+        }
+    }
+    maven {
+        name = 'NeoForgedMirror'
+        url = 'https://maven.creeperhost.net'
+        content {
+            includeGroupByRegex 'net\\.neoforged.*'
+            includeGroupByRegex 'cpw\\.mods.*'
+        }
+    }
+    // Mojang 官方库
+    maven {
+        name = 'MojangLibraries'
+        url = 'https://libraries.minecraft.net/'
+        content {
+            includeGroupByRegex 'com\\.mojang.*'
+            includeGroupByRegex 'it\\.unimi\\.dsi.*'
+            includeGroupByRegex 'org\\.lwjgl.*'
+            // netty 的 natives 分类器 jar 只在 Maven Central，这里不截胡
+        }
+    }
+    mavenCentral()
+}
+
+// 把 gradle.properties 里的值注入 neoforge.mods.toml
+tasks.withType(ProcessResources).configureEach {
+    def expandProps = [
+            'version'           : project.version,
+            'mod_id'            : project.mod_id,
+            'minecraft_version' : project.minecraft_version,
+            'neoforge_version'  : project.neoforge_version,
+            'mod_name'          : 'Puppet Controller'
+    ]
+    inputs.properties expandProps
+    filesMatching(['META-INF/neoforge.mods.toml', 'pack.mcmeta']) {
+        expand expandProps
+    }
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+    options.release = project.java_version as int
+}
+
+/*
+ * 注入目标自检。
+ *
+ * Mixin 的 @Inject 用字符串方法名，编译期不检查；换 MC 版本时这里最容易静默失败
+ * （表现为进游戏报 "NoSuchMethodError" 或 mixin apply failed）。跑一次真实反射验证。
+ */
+tasks.register('verifyMixins', JavaExec) {
+    group = 'verification'
+    description = '反射校验全部 mixin 注入点在当前 Minecraft 版本中真实存在'
+    dependsOn tasks.named('classes')
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'com.dsh.puppet.MixinSelfCheck'
+}
+
+// 让 check 顺带跑一遍
+tasks.named('check') {
+    dependsOn tasks.named('verifyMixins')
+}
+

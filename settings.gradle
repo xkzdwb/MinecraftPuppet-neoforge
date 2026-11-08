@@ -1,0 +1,25 @@
+/*
+ * NeoForge 插件仓库。
+ *
+ * maven.creeperhost.net 是 NeoForge 官方构件的镜像，放在前面是为了在某些地区
+ * （maven.neoforged.net 不可达 / 很慢）也能正常拉取。它在全球都能访问，
+ * 所以普通环境也不需要改动；官方源仍在 gradlePluginPortal / mavenCentral 里。
+ */
+pluginManagement {
+    repositories {
+        maven {
+            name = 'NeoForgedMirror'
+            url = 'https://maven.creeperhost.net'
+            content {
+                includeGroup 'net.neoforged'
+                includeGroup 'net.neoforged.fancymodloader'
+                includeGroupByRegex 'net\\.neoforged.*'
+                includeGroupByRegex 'cpw\\.mods.*'
+            }
+        }
+        gradlePluginPortal()
+        mavenCentral()
+    }
+}
+
+rootProject.name = 'puppet-neoforge'
